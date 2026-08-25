@@ -4,14 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
+import { completeAuthentikLogin } from "@/lib/authentik";
 import { completeLoginWithToken } from "@/lib/redirect";
-import { verifyAndConsumeOAuthState } from "@/lib/oauthState";
 
-type ExchangeTrigger = (arg: { code: string; state: string }) => Promise<{ token: string }>;
-
-// Microsoft、Google 的 OAuth 回調頁邏輯完全一樣，只有兌換 token 的 API 不同，
-// 所以共用這支元件，個別 provider 的 page.tsx 只負責帶入對應的 trigger。
-export function OAuthCallbackHandler({ trigger }: { trigger: ExchangeTrigger }) {
+export default function AuthentikCallbackPage() {
   const [error, setError] = useState<string | null>(null);
   // code 只能兌換一次，React StrictMode/開發模式會讓 effect 觸發兩次，用 ref 擋掉重複呼叫
   const hasRun = useRef(false);
@@ -33,21 +29,21 @@ export function OAuthCallbackHandler({ trigger }: { trigger: ExchangeTrigger }) 
         setError("登入已取消或未同意授權");
         return;
       }
-      if (!code || !state || !verifyAndConsumeOAuthState(state)) {
+      if (!code || !state) {
         setError("登入驗證失敗，請重新登入一次");
         return;
       }
 
       try {
-        const { token } = await trigger({ code, state });
-        completeLoginWithToken(token);
+        const idToken = await completeAuthentikLogin(code, state);
+        completeLoginWithToken(idToken);
       } catch (e) {
         setError(e instanceof Error ? e.message : "登入失敗，請重試");
       }
     }
 
     void run();
-  }, [trigger]);
+  }, []);
 
   return (
     <Box

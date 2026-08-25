@@ -4,7 +4,7 @@
 // 1. 公司其他服務發現使用者未登入，導向本 Portal：
 //    https://portal.company.com/login?redirect_uri=https://service-a.company.com/
 // 2. /login 頁面把 redirect_uri 存進 sessionStorage（先做網域白名單檢查，避免 open redirect）。
-// 3. 使用者完成登入（Microsoft 或帳密）拿到 token 後，導回 redirect_uri，
+// 3. 使用者透過 Authentik 完成登入拿到 id_token 後，導回 redirect_uri，
 //    token 帶在 URL fragment（#token=xxx，不會被送到伺服器 access log，也不會出現在 Referer）。
 // 4. 目的服務的前端自行從網址讀出 token，存進自己的 storage，並把網址清乾淨。
 //

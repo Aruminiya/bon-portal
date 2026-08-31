@@ -65,8 +65,11 @@ export function completeLoginWithToken(token: string) {
     window.location.href = target.toString();
     return;
   }
+  // token 一樣帶在 fragment（不進伺服器 log），讓 /login/success 能實際解出來驗證登入
+  // 是否真的成功，而不是只顯示一句固定的「登入成功」文字。
+  //
   // 這是一支給非 React 元件呼叫的 helper（沒有 useRouter 可用），且需要整頁導航
   // 而非 client-side transition，因此用 window.location 而非 next/navigation。
   // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  window.location.href = "/login/success";
+  window.location.href = `/login/success#token=${encodeURIComponent(token)}`;
 }

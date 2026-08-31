@@ -87,3 +87,52 @@ export async function completeAuthentikLogin(code: string, state: string): Promi
   }
   return data.id_token as string;
 }
+
+export type AuthentikIdTokenClaims = {
+  sub: string;
+  email?: string;
+  name?: string;
+  preferred_username?: string;
+  aud: string | string[];
+  exp: number;
+  [claim: string]: unknown;
+};
+
+function base64UrlDecode(segment: string): string {
+  const padded = segment.replace(/-/g, "+").replace(/_/g, "/");
+  const withPadding = padded + "=".repeat((4 - (padded.length % 4)) % 4);
+  return decodeURIComponent(
+    atob(withPadding)
+      .split("")
+      .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+      .join(""),
+  );
+}
+
+// 檢查 id_token 的格式、有效期、audience 是不是發給這個 client 的。故意不驗簽章：
+// 這個 token 是我們自己剛剛直接跟 Authentik 的 token endpoint 換來的（HTTPS 直連，
+// 不是從別處轉交過來的），驗簽章是給「收到別人轉交的 token」的下游服務做的事。
+export function decodeAndVerifyIdToken(idToken: string): AuthentikIdTokenClaims {
+  const segments = idToken.split(".");
+  if (segments.length !== 3) {
+    throw new Error("id_token 格式不正確");
+  }
+
+  let claims: AuthentikIdTokenClaims;
+  try {
+    claims = JSON.parse(base64UrlDecode(segments[1]));
+  } catch {
+    throw new Error("id_token 格式不正確");
+  }
+
+  const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!audiences.includes(CLIENT_ID)) {
+    throw new Error("id_token 的 audience 不是這個應用程式");
+  }
+
+  if (typeof claims.exp !== "number" || claims.exp * 1000 <= Date.now()) {
+    throw new Error("id_token 已過期，請重新登入一次");
+  }
+
+  return claims;
+}

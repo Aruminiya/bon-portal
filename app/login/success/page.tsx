@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
-import { decodeAndVerifyIdToken } from "@/lib/authentik";
+import { decodeAndVerifyIdToken, rememberIdTokenForLogout } from "@/lib/authentik";
+import { NavBar } from "@/components/NavBar";
 
 type VerifyState =
   | { status: "checking" }
@@ -42,6 +43,7 @@ export default function LoginSuccessPage() {
 
     try {
       const claims = decodeAndVerifyIdToken(token);
+      rememberIdTokenForLogout(token);
       const label = claims.email ?? claims.preferred_username ?? claims.name ?? claims.sub;
       setState({ status: "ok", label: String(label) });
     } catch (e) {
@@ -53,51 +55,55 @@ export default function LoginSuccessPage() {
   }, []);
 
   return (
-    <Box
-      component="main"
-      sx={{
-        mx: "auto",
-        display: "flex",
-        minHeight: "100vh",
-        maxWidth: 384,
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 1,
-        px: 2,
-        textAlign: "center",
-      }}
-    >
-      {state.status === "checking" && (
-        <Typography variant="body2" color="text.secondary">
-          確認登入狀態中...
-        </Typography>
-      )}
-
-      {state.status === "ok" && (
-        <>
-          <Typography variant="h6" component="h1" sx={{ fontWeight: 600 }}>
-            登入成功
-          </Typography>
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <NavBar />
+      <Box
+        component="main"
+        sx={{
+          mx: "auto",
+          display: "flex",
+          flex: 1,
+          width: "100%",
+          maxWidth: 384,
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1,
+          px: 2,
+          textAlign: "center",
+        }}
+      >
+        {state.status === "checking" && (
           <Typography variant="body2" color="text.secondary">
-            已驗證為 {state.label}，請從公司服務入口進入你要使用的系統。
+            確認登入狀態中...
           </Typography>
-        </>
-      )}
+        )}
 
-      {state.status === "error" && (
-        <>
-          <Typography variant="h6" component="h1" sx={{ fontWeight: 600 }}>
-            登入驗證失敗
-          </Typography>
-          <Typography variant="body2" color="error">
-            {state.message}
-          </Typography>
-          <Link href="/login" variant="body2">
-            回登入頁重新登入
-          </Link>
-        </>
-      )}
+        {state.status === "ok" && (
+          <>
+            <Typography variant="h6" component="h1" sx={{ fontWeight: 600 }}>
+              登入成功
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              已驗證為 {state.label}，請從公司服務入口進入你要使用的系統。
+            </Typography>
+          </>
+        )}
+
+        {state.status === "error" && (
+          <>
+            <Typography variant="h6" component="h1" sx={{ fontWeight: 600 }}>
+              登入驗證失敗
+            </Typography>
+            <Typography variant="body2" color="error">
+              {state.message}
+            </Typography>
+            <Link href="/login" variant="body2">
+              回登入頁重新登入
+            </Link>
+          </>
+        )}
+      </Box>
     </Box>
   );
 }

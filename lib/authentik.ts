@@ -26,9 +26,14 @@ const CLIENT_ID = requiredEnv(
   process.env.NEXT_PUBLIC_AUTHENTIK_CLIENT_ID,
 );
 
+// 結束 Authentik SSO session 用的 end session endpoint。跟前三個不同，這個故意不用
+// requiredEnv：沒設定的話只代表「登出功能還沒接上」，不該讓整個 App（包含登入）掛掉。
+const END_SESSION_ENDPOINT = process.env.NEXT_PUBLIC_AUTHENTIK_END_SESSION_ENDPOINT;
+
 const CALLBACK_PATH = "/auth/authentik/callback";
 const STATE_STORAGE_KEY = "authentik_state";
 const CODE_VERIFIER_STORAGE_KEY = "authentik_code_verifier";
+const LAST_ID_TOKEN_STORAGE_KEY = "authentik_last_id_token";
 
 function callbackRedirectUri(): string {
   return `${window.location.origin}${CALLBACK_PATH}`;
@@ -86,6 +91,46 @@ export async function completeAuthentikLogin(code: string, state: string): Promi
     throw new Error(data?.error_description ?? data?.error ?? `HTTP ${res.status}`);
   }
   return data.id_token as string;
+}
+
+export function isAuthentikLogoutConfigured(): boolean {
+  return Boolean(END_SESSION_ENDPOINT);
+}
+
+// /login/success 頁驗證完 id_token 後呼叫：Portal 平常不保留 id_token（見檔案開頭說明），
+// 但沒有它就沒辦法在登出時帶 id_token_hint，Authentik 會拒絕帶 post_logout_redirect_uri
+// 的登出請求（見 startAuthentikLogout 的說明），導致登出後沒辦法自動導回 Portal。
+// 這裡只在使用者「直接開 Portal 登入」（沒有 redirect_uri 導去其他服務）這個情境下，
+// 用 sessionStorage 換取「登出能自動導回」——同分頁分頁關閉就會清掉，不是長期保存。
+export function rememberIdTokenForLogout(idToken: string) {
+  sessionStorage.setItem(LAST_ID_TOKEN_STORAGE_KEY, idToken);
+}
+
+// NavBar 的登出按鈕呼叫：「登出」實際上是結束使用者在 Authentik 那邊的 SSO session，
+// 讓其他服務下次導回本 Portal 時不會直接沿用舊 session 靜默登入。
+//
+// post_logout_redirect_uri 只有搭配 id_token_hint 才會被 Authentik 接受（OIDC 規範規定，
+// 否則任何人光憑公開的 client_id 就能亂指定登出後的導向網址）。有暫存到 id_token
+// （見 rememberIdTokenForLogout）就帶上兩者、登出後自動導回 Portal；沒有的話（例如是從
+// 其他服務轉來的登入、token 早就轉交出去了）就只結束 session，停在 Authentik 自己的
+// 「已登出」頁面。
+export function startAuthentikLogout() {
+  if (!END_SESSION_ENDPOINT) {
+    throw new Error("尚未設定登出端點");
+  }
+
+  const idTokenHint = sessionStorage.getItem(LAST_ID_TOKEN_STORAGE_KEY);
+  sessionStorage.removeItem(LAST_ID_TOKEN_STORAGE_KEY);
+
+  const params = new URLSearchParams({ client_id: CLIENT_ID });
+  if (idTokenHint) {
+    params.set("id_token_hint", idTokenHint);
+    params.set("post_logout_redirect_uri", `${window.location.origin}/`);
+  }
+
+  // 導去外部的 Authentik 網域，不是站內路由，所以用 window.location。
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.href = `${END_SESSION_ENDPOINT}?${params.toString()}`;
 }
 
 export type AuthentikIdTokenClaims = {

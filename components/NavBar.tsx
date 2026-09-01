@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
+import { AuthentikLoginButton } from "@/components/AuthentikLoginButton";
+import { AuthentikLogoutButton } from "@/components/AuthentikLogoutButton";
 
 export function NavBar() {
   return (
@@ -36,9 +37,10 @@ export function NavBar() {
             Bon Portal
           </Typography>
         </Box>
-        <Button component={Link} href="/login" variant="outlined" size="small">
-          登入
-        </Button>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
+          <AuthentikLoginButton />
+          <AuthentikLogoutButton />
+        </Stack>
       </Toolbar>
     </AppBar>
   );

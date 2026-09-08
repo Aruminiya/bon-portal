@@ -114,6 +114,11 @@ export function rememberIdTokenForLogout(idToken: string) {
 // （見 rememberIdTokenForLogout）就帶上兩者、登出後自動導回 Portal；沒有的話（例如是從
 // 其他服務轉來的登入、token 早就轉交出去了）就只結束 session，停在 Authentik 自己的
 // 「已登出」頁面。
+//
+// 注意：Authentik 對 post_logout_redirect_uri 是「字串完全比對」（Provider 的 Redirect URIs
+// 裡 type=logout、matching mode=strict 的那筆），連結尾斜線都算不同。這裡刻意用不帶尾斜線的
+// window.location.origin，Authentik 那邊就要註冊成一模一樣的值（例如 http://localhost:6174），
+// 否則登出會被擋成 Bad Request（invalid_request）。
 export function startAuthentikLogout() {
   if (!END_SESSION_ENDPOINT) {
     throw new Error("尚未設定登出端點");
@@ -125,12 +130,30 @@ export function startAuthentikLogout() {
   const params = new URLSearchParams({ client_id: CLIENT_ID });
   if (idTokenHint) {
     params.set("id_token_hint", idTokenHint);
-    params.set("post_logout_redirect_uri", `${window.location.origin}/`);
+    params.set("post_logout_redirect_uri", window.location.origin);
   }
 
+  const endSession = new URL(END_SESSION_ENDPOINT);
+  endSession.search = params.toString();
+
+  // 繞過 Authentik 的一個 bug：它的 EndSessionView.dispatch 只要發現 session 裡還留著
+  // 未完成的 flow plan（session key `authentik/flows/plan`），就直接回一個 body 全空的
+  // HTTP 200 —— 使用者看到的是一片白畫面，而且根本沒登出。那個早退原本只是要處理
+  // front-channel logout 的 iframe 請求，卻沒有判斷請求是不是來自 iframe，所以連正常的
+  // 整頁導覽也一起誤傷。
+  //
+  // 而殘留幾乎是必然發生的：invalidation flow 最後的 SessionEndStage 是用「redirect
+  // challenge」收尾，瀏覽器直接跳走、不會把結果回報給 flow executor，於是負責清掉 plan
+  // 的 executor.cancel() 永遠不會被呼叫；接下來的登入又會用 cycle_key 把這筆殘留一起
+  // 帶到新 session。也就是「登出過一次（任何一個 App 都算），下一次登出就白畫面」。
+  //
+  // 所以先繞去 Authentik 的 CancelView，它會刪掉那個 session key 再導向 next（只接受
+  // 相對路徑，剛好 end-session 就在同一個 host 上），等於每次登出前都先把地雷清乾淨。
+  const logoutUrl = new URL("/flows/-/cancel/", endSession);
+  logoutUrl.searchParams.set("next", `${endSession.pathname}${endSession.search}`);
+
   // 導去外部的 Authentik 網域，不是站內路由，所以用 window.location。
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  window.location.href = `${END_SESSION_ENDPOINT}?${params.toString()}`;
+  window.location.href = logoutUrl.toString();
 }
 
 export type AuthentikIdTokenClaims = {

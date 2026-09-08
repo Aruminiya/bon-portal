@@ -97,6 +97,36 @@ export function isAuthentikLogoutConfigured(): boolean {
   return Boolean(END_SESSION_ENDPOINT);
 }
 
+// NavBar 要靠「這個分頁有沒有登入過」來決定顯示登入還是登出按鈕，但 sessionStorage 不是
+// React state，寫進去不會觸發重新渲染。這裡包一層最小的訂閱機制，讓 UI 能用
+// useSyncExternalStore 訂閱它，而不用把 token 提升成 React state（那反而會讓憑證多待在
+// 記憶體裡的一份 copy）。
+const sessionListeners = new Set<() => void>();
+
+export function subscribeToAuthSession(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+function notifyAuthSessionChange() {
+  for (const listener of sessionListeners) {
+    listener();
+  }
+}
+
+// 只回傳原始字串，不解析也不驗證：存進去之前 /login/success 已經用
+// decodeAndVerifyIdToken 驗過格式與 audience，UI 只需要知道「有沒有」。
+//
+// 特別是刻意不檢查 exp：id_token 只有 5 分鐘壽命，但 Authentik 那邊的 SSO session
+// 活得久得多，而 end-session 端點驗 id_token_hint 時本來就會關掉 exp 檢查
+// （「登出請求晚於 token 過期仍然合法」）。拿 exp 當登入狀態會讓登出按鈕在登入
+// 五分鐘後自己消失，那是錯的。
+export function getRememberedIdToken(): string | null {
+  return sessionStorage.getItem(LAST_ID_TOKEN_STORAGE_KEY);
+}
+
 // /login/success 頁驗證完 id_token 後呼叫：Portal 平常不保留 id_token（見檔案開頭說明），
 // 但沒有它就沒辦法在登出時帶 id_token_hint，Authentik 會拒絕帶 post_logout_redirect_uri
 // 的登出請求（見 startAuthentikLogout 的說明），導致登出後沒辦法自動導回 Portal。
@@ -104,6 +134,7 @@ export function isAuthentikLogoutConfigured(): boolean {
 // 用 sessionStorage 換取「登出能自動導回」——同分頁分頁關閉就會清掉，不是長期保存。
 export function rememberIdTokenForLogout(idToken: string) {
   sessionStorage.setItem(LAST_ID_TOKEN_STORAGE_KEY, idToken);
+  notifyAuthSessionChange();
 }
 
 // NavBar 的登出按鈕呼叫：「登出」實際上是結束使用者在 Authentik 那邊的 SSO session，
@@ -126,6 +157,7 @@ export function startAuthentikLogout() {
 
   const idTokenHint = sessionStorage.getItem(LAST_ID_TOKEN_STORAGE_KEY);
   sessionStorage.removeItem(LAST_ID_TOKEN_STORAGE_KEY);
+  notifyAuthSessionChange();
 
   const params = new URLSearchParams({ client_id: CLIENT_ID });
   if (idTokenHint) {

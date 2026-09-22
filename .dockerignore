@@ -1,0 +1,15 @@
+# .env 一定要擋在 image 外。它是本機的開發設定（localhost:9000），而設定是
+# build 時燒進產物的 —— 讓它進來的話，忘記改就會把 dev 的 Authentik 位址
+# 燒進正式版的 image，而且不會有任何錯誤訊息。image 的設定一律走 Dockerfile
+# 的 ARG，必須每次明寫。
+.env
+.env.local
+node_modules
+dist
+dist-ssr
+.git
+*.log
+.vscode
+.idea
+.DS_Store
+openspec

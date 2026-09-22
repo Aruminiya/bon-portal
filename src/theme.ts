@@ -3,10 +3,14 @@ import { createTheme } from "@mui/material/styles";
 // 色票取自 Bonvies 內部 theme package（不同 repo、非同一個 workspace，
 // 所以直接複製色值而非加套件依賴）：
 // Bonsale/code/bonvies/packages/theme/src/bonvies/index.ts
+//
+// Geist 原本是 next/font 載的，隨 Next.js 一起退場，改由 index.html 的
+// Google Fonts link 載入 —— 載不到的話會沿著下面的 fallback 鏈往後走，
+// 不會壞掉。
 export const theme = createTheme({
   typography: {
     fontFamily:
-      "var(--font-geist-sans), Roboto, 'Noto Sans TC', Arial, Helvetica, sans-serif",
+      "Geist, Roboto, 'Noto Sans TC', Arial, Helvetica, sans-serif",
   },
   palette: {
     primary: {

@@ -94,21 +94,23 @@ Portal 的「登出」SHALL 結束使用者在 Authentik 的 SSO session(完整 
 - **AND** Authentik 的 SSO session 被結束,使用者導回 Portal 且顯示為未登入
 - **AND** 其他產品下次跑 OIDC 時 MUST 重新要求登入
 
-#### Scenario: 繞過殘留 flow plan 造成的空白頁
+#### Scenario: 連續登出多次
 
-- **WHEN** 使用者的 Authentik session 中殘留未完成的 flow plan(幾乎每次登出後都會發生)
-- **THEN** 登出請求 MUST 先經過 Authentik 的 flow cancel 路徑清除該殘留,再進入 end-session
-- **AND** 使用者 MUST NOT 看到一片空白的 HTTP 200 頁面
+- **WHEN** 使用者在同一個瀏覽器連續完成多次「登入 → 登出」
+- **THEN** 每一次登出都 MUST 導向可見的結果(導回 Portal 或身分提供者的已登出頁)
+- **AND** MUST NOT 停在一個內容為空的成功回應上
+- **AND** 每一次的 SSO session 都 MUST 確實被結束,而非只是畫面看起來完成了
 
 #### Scenario: post_logout_redirect_uri 的比對
 
 - **WHEN** Portal 帶出 `post_logout_redirect_uri`
 - **THEN** 該值 MUST 與 Authentik provider 上註冊的 logout redirect URI **逐字**相同(含結尾斜線的有無),否則登出會被擋成 `invalid_request`
 
-#### Scenario: 未設定登出端點
+#### Scenario: 身分提供者未提供 end-session 端點
 
-- **WHEN** 部署環境未提供 end-session 端點設定
-- **THEN** Portal 不顯示登出按鈕,且登入功能 MUST NOT 受影響
+- **WHEN** 身分提供者的探索文件中沒有 end-session 端點
+- **THEN** 這是身分提供者端的設定缺漏,Portal SHALL 以錯誤訊息呈現
+- **AND** MUST NOT 靜默地讓登出按鈕看起來成功卻什麼都沒做
 
 ### Requirement: 使用者身分僅供 Portal 自身顯示
 

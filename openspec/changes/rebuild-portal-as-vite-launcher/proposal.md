@@ -19,7 +19,7 @@ bon-portal 目前是一個**純 SPA 外面套了一層 Next.js 的殼**:8 個頁
 - **BREAKING** — 移除 `NEXT_PUBLIC_ALLOWED_REDIRECT_HOSTS`:白名單只為轉交存在。
 - **BREAKING** — 環境變數改名為 demo 的 `VITE_*` 系列。前綴不能省 —— Vite 的 `import.meta.env` 只會曝露 `VITE_` 開頭的變數,而那是本機開發時的 fallback 來源。
 - 手寫 OIDC 全部退場(`lib/pkce.ts`、`lib/authentik.ts` 的登入與 token 解析),改用 demo 已驗證的 `react-oidc-context` + `oidc-client-ts`。隨之取得 `nonce` 驗證、discovery、`offline_access` + silent renew。
-- **保留** Authentik 登出繞道(`/flows/-/cancel/`)。demo 的 `src/utils/authentikLogout.ts` 與 bon-portal 的 `lib/authentik.ts:171-188` 是同一個繞道的兩份實作,採用 demo 版(它從 discovery 取 `end_session_endpoint`,少一個設定值)。
+- 登出用 `react-oidc-context` 的 `signoutRedirect()`,end-session 位址由 discovery 取得。**不移植** demo 的 `/flows/-/cancel/` 繞道 —— 那是為了 Authentik 2026.8.0 的登出白畫面 bug 而存在,在 2026.8.1 實測已不再重現(見 design.md D5)。
 - 新增產品清單:首頁的三張純文案卡片換成 `VITE_PORTAL_PRODUCTS` 解析出的產品連結。
 - 設定改為**建置時燒進產物**:`Dockerfile` 的 `ARG` 提供值,Vite 在建置時替換成字面值。**不採用** demo 的執行時注入(entrypoint 產生 `/env-config.js` → `window.__ENV__`)—— 那是為了「一份 image 跑四個容器」而存在的,Portal 只有一個部署,用不到。
 - **保留 bon-portal 的外觀**:`lib/theme.ts` 的 Bonvies 色票、NavBar 與首頁的視覺,搬進新結構。
@@ -43,7 +43,7 @@ bon-portal 目前是一個**純 SPA 外面套了一層 Next.js 的殼**:8 個頁
 
 **保留內容、換位置**:`lib/theme.ts` → `src/theme.ts`(Bonvies 色票不變);NavBar 與首頁的視覺搬進新元件。
 
-**從 demo 取得**:`index.html`、`vite.config.ts`、`src/main.tsx`、`src/config/oidc.ts`、`src/utils/authentikLogout.ts`、`src/utils/portalProducts.ts`、`src/components/FullscreenState.tsx`、`Dockerfile`、`nginx.conf`。
+**從 demo 取得**:`index.html`、`vite.config.ts`、`src/main.tsx`、`src/config/oidc.ts`、`src/utils/portalProducts.ts`、`src/components/FullscreenState.tsx`、`Dockerfile`、`nginx.conf`。
 
 **從 demo 取得但刻意不採用**:`src/config/runtimeEnv.ts`、`public/env-config.js`、`docker-entrypoint.d/40-generate-env-config.sh` —— 執行時注入那一整套(理由見 design.md D16)。
 

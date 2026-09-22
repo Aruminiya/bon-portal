@@ -4,10 +4,10 @@
 
 ## 1. 前置:Authentik 的 `products` scope mapping(本 repo 之外)
 
-- [ ] 1.1 **Customization → Property Mappings → Create → Scope Mapping**:**Scope name** 填 `products`(不是 Name 那一欄),Expression 用 `sorted({g.name.split(":")[0] for g in request.user.ak_groups.all()})` 包成 `{"products": ...}`
-- [ ] 1.2 **應用程式 → 供應商 → `bon-portal-app` → 編輯 → Scopes**:把該 mapping 加到 Selected
+- [x] 1.1 **Customization → Property Mappings → Create → Scope Mapping**:**Scope name** 填 `products`(不是 Name 那一欄),Expression 用 `sorted({g.name.split(":")[0] for g in request.user.ak_groups.all()})` 包成 `{"products": ...}`
+- [x] 1.2 **應用程式 → 供應商 → `bon-portal-app` → 編輯 → Scopes**:把該 mapping 加到 Selected
 - [ ] 1.3 確認產品層級群組存在(`bonsale` / `bontalk` / `bonai`),並把測試帳號加進其中一兩個(要能驗「只看到一部分」)
-- [ ] 1.4 驗收:`curl -s <authority>/.well-known/openid-configuration | jq '.scopes_supported'` 看得到 `products`(沒看到就是 1.1 或 1.2 沒做對,Authentik 不會報錯)
+- [x] 1.4 驗收:`curl -s <authority>/.well-known/openid-configuration | jq '.scopes_supported'` 看得到 `products`(沒看到就是 1.1 或 1.2 沒做對,Authentik 不會報錯)
 
 ## 2. 產品目錄搬進程式碼
 
@@ -20,7 +20,7 @@
 
 - [x] 3.1 `src/config/oidc.ts` 的 scope 加上 `products`。驗證:登出再登入後,devtools 看得到 `auth.user.profile.products`(**一定要重新登入**,舊 token 不會長出新 claim)
 - [x] 3.2 在 `src/products.ts` 或 `src/App.tsx` 加入過濾:取 `PRODUCTS` 與授權清單的交集,對不上的授權項目忽略。驗證:測試帳號只在 `bonsale` 群組時,首頁只顯示 BonSale
-- [ ] 3.3 驗證非產品群組不造成問題:把測試帳號加進一個不對應任何產品的群組(例如 `staff`),首頁顯示不變、不報錯
+- [x] 3.3 驗證非產品群組不造成問題:把測試帳號加進一個不對應任何產品的群組(例如 `staff`),首頁顯示不變、不報錯
 - [ ] 3.4 驗證細項權限也算數:把測試帳號從 `bonsale` 移到只有 `bonsale:admin`,首頁**仍然**顯示 BonSale(這是 D1 讓 Authentik 先歸納的主要理由)
 
 ## 4. 三態處理

@@ -59,25 +59,19 @@ Vite 在建置時**只會替換 `VITE_` 開頭的變數**(不論來源是 `.env`
 
 demo 專用的 `VITE_DEMO_APP_NAME` / `VITE_DEMO_APP_TYPE` / `VITE_THEME_COLOR` / `VITE_AUTHENTIK_ENROLLMENT_URL` / `VITE_AUTHENTIK_SCOPE` 不移植(scope 在 `oidc.ts` 寫死成 `openid profile email offline_access`,Portal 沒有讓它可設定的理由)。
 
-### D5 — 登出繞道採用 demo 版(從 discovery 取 end-session 位址)
+### D5 — 登出直接用 `auth.signoutRedirect()`,不做繞道
 
-bon-portal 與 demo 各有一份同樣的繞道實作,差別在 end-session 位址的來源:bon-portal 用獨立環境變數,demo 在登出時 `fetch` discovery 文件取 `end_session_endpoint`。
+end-session 的位址由 discovery 取得(少一個要維護、且可能與 `authority` 不一致的設定值),整個登出交給 `signoutRedirect()`。
 
-採用 demo 版:少一個要維護、且可能與 `authority` 不一致的設定值。代價是登出時多一次網路來回 —— 使用者已經在等待整頁導航,感覺不出來。
+它內部依序是:取 user 的 `id_token` 當 `id_token_hint` → `removeUser()` → 導向 end-session。**順序正是需要的** —— 特別是 `removeUser()` 在導向之前:登出帶 `post_logout_redirect_uri` 會回到 Portal,本機 user 還留著的話使用者會看到「已登入」,但 Authentik 的 session 其實已經結束,那是會誤導人的假狀態。
 
-連帶:`isAuthentikLogoutConfigured()` 這個「沒設定端點就不顯示登出按鈕」的機制消失。改成只要登入了就顯示登出按鈕 —— authority 設定對的話 discovery 一定給得出 `end_session_endpoint`。
+連帶:「沒設定端點就不顯示登出按鈕」這個舊機制消失。端點缺漏改為呈現錯誤 —— discovery 沒有 end-session 端點是身分提供者端的設定缺漏,不是「功能還沒接上」。
 
-**繞道本身與解釋成因的註解一字不改地保留。** 那是 Authentik 2026.8.0 的真 bug(`EndSessionView.dispatch()` 遇到殘留 flow plan 就回空白 200,而殘留幾乎必然發生),每個接 Authentik 的 RP 都要做。因此**不能用 `auth.signoutRedirect()`** —— 它會直接導向 discovery 給的 end-session URL,繞不過那個 bug。
+**原本這裡是一個繞道**:Authentik **2026.8.0** 有個 bug —— session 殘留未完成的 flow plan 時,`EndSessionView.dispatch()` 回一個 body 全空的 HTTP 200 且根本沒登出,症狀是「第一次正常、第二次以後白畫面」。當時的解法是先導去 `/flows/-/cancel/` 清掉殘留。
 
-### D6 — 登出順序:先取 `id_token`,再清本機 user,最後導向
+**在 2026.8.1 上實測連續登出兩輪都不再重現,所以繞道移除。** 判斷依據是版本差異(demo 的 compose 釘在 `2026.8.0`,本次驗證環境是 `2026.8.1`),不是「不知為何好了」。成因與繞道寫法留在 `CLAUDE.md` 的登出段落當診斷線索:**若登出又出現空白的 200,先查 Authentik 版本。**
 
-照 demo 的 `AppHeader.tsx:73-75`:
-
-1. `const idTokenHint = auth.user?.id_token`(必須在清除之前取)
-2. `await auth.removeUser()`
-3. `await signoutWithCancelBounce(idTokenHint, postLogoutRedirectUri)`
-
-第 2 步不能省:登出帶 `post_logout_redirect_uri` 會導回 Portal,如果本機 user 還在 storage 裡,使用者回到 Portal 會看到「已登入」,但 Authentik 的 SSO session 其實已經結束 —— 一個會誤導人的假狀態。
+> (原 D6「登出順序」已併入 D5 —— 順序現在由 `signoutRedirect()` 內部保證,不再是我們要自己維持的東西。)
 
 ### D7 — `post_logout_redirect_uri` 定為帶尾斜線的 `origin + "/"`
 
@@ -163,6 +157,8 @@ demo 用 entrypoint 腳本在容器啟動當下產生 `/env-config.js` → `wind
 **[逐字比對的兩個 URI]** → `redirect_uri` 與 `post_logout_redirect_uri` 都是 Authentik 端 strict 比對。D3/D7 已把兩者統一成帶尾斜線的 `http://localhost:6030/`,**但 Authentik 後台目前註冊的是 `http://localhost:6174/auth/authentik/callback`** —— 兩處都不一樣,是會讓第一次測試就失敗的已知不一致。
 
 **[改到共用的 invalidation flow]** → 每個 provider 只能綁一個。Portal 綁 `default-invalidation-flow`(含 `UserLogoutStage`,完整 SLO),各產品綁 `default-provider-invalidation-flow`(0 stage,只登出該 app)。**不要改那條共用的 default flow**,否則所有 app 的登出都會變成 SLO。
+
+**[Authentik 升版可能讓登出 bug 回來]** → 2026.8.0 的空白頁 bug 在 2026.8.1 實測已消失,繞道因此移除。若升版或換環境後登出又出現空白的 200,那是同一個 bug —— 成因與繞道寫法留在 `CLAUDE.md` 的登出段落與 git 歷史。
 
 **[想做「切換帳號」]** → 不要做。`prompt=login` 在 Authentik 不可靠(upstream #12182 / #18507),`select_account` 不在 Authentik 的 `ALLOWED_PROMPT_PARAMS` 裡。demo 做過又移除。
 

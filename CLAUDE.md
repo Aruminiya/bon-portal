@@ -34,11 +34,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 登出
 
-`src/utils/authentikLogout.ts` 的 `signoutWithCancelBounce()`。**不要改成 `auth.signoutRedirect()`** —— 那會繞不過 Authentik 2026.8.0 的一個真 bug:session 裡殘留未完成的 flow plan 時,`EndSessionView.dispatch()` 回一個 body 全空的 200,而殘留幾乎每次登出後都會發生。解法是先繞去 Authentik 的 CancelView 清掉殘留再進 end-session。那段註解解釋了完整成因,不要刪。
+`auth.signoutRedirect()`。它內部依序是「取 `id_token` 當 `id_token_hint` → `removeUser()` → 導向 end-session」,順序正是需要的 —— 特別是 `removeUser()` 在導向之前:登出會帶 `post_logout_redirect_uri` 回到 Portal,本機 user 還留著的話,使用者回來會看到「已登入」,但 Authentik 的 session 其實已經結束了。
 
-呼叫順序有講究(見 `AuthentikLogoutButton.tsx`):取 `id_token` → `removeUser()` → 導向。少了中間那步,使用者登出後導回 Portal 會看到假的「已登入」狀態。
+`id_token_hint` 不能省 —— Authentik 只有搭配它才接受 `post_logout_redirect_uri`。而 `post_logout_redirect_uri` 與 `redirect_uri` 在 Authentik 都是**字串完全比對**,連結尾斜線都算不同。
 
-`post_logout_redirect_uri` 與 `redirect_uri` 在 Authentik 都是**字串完全比對**,連結尾斜線都算不同。這裡統一用帶尾斜線的首頁。
+> **歷史(留著當診斷線索)**:Authentik **2026.8.0** 有一個登出白畫面的 bug —— session 裡殘留未完成的 flow plan 時,`EndSessionView.dispatch()` 會回一個 body 全空的 HTTP 200,而且**根本沒登出**,症狀是「第一次登出正常、第二次以後白畫面」。當時的解法是先繞去 `/flows/-/cancel/` 清掉殘留再進 end-session。
+>
+> **在 2026.8.1 實測已不再重現,所以繞道移除了。** 如果哪天登出又出現空白的 200,先查 Authentik 版本 —— 那是同一個 bug 回來了,繞道的實作見 git 歷史(`src/utils/authentikLogout.ts`)。
 
 ### 路由
 

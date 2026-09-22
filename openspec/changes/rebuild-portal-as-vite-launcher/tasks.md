@@ -4,12 +4,12 @@
 
 ## 1. 前置:Authentik provider 設定(本 repo 之外,需在改程式前完成)
 
-- [ ] 1.1 把 `bon-portal-app` provider 的 redirect URI 改成 **`http://localhost:6030/`**(含尾斜線;現註冊值是 `http://localhost:6174/auth/authentik/callback`,path 與 port 都不同),確認已儲存
-- [ ] 1.2 註冊 logout redirect URI(type=logout、matching mode=strict),值同樣是 **`http://localhost:6030/`**,與 1.1 逐字相同
-- [ ] 1.3 為該 provider 勾上 `offline_access` scope mapping(獨立的一筆 mapping,要手動勾選)
-- [ ] 1.4 把該 provider 的 invalidation flow 綁成 `default-invalidation-flow`(含 `UserLogoutStage`,完整 SLO);確認**沒有**修改那條共用 default flow 本身
+- [x] 1.1 把 `bon-portal-app` provider 的 redirect URI 改成 **`http://localhost:6030/`**(含尾斜線;現註冊值是 `http://localhost:6174/auth/authentik/callback`,path 與 port 都不同),確認已儲存
+- [x] 1.2 註冊 logout redirect URI(type=logout、matching mode=strict),值同樣是 **`http://localhost:6030/`**,與 1.1 逐字相同
+- [x] 1.3 為該 provider 勾上 `offline_access` scope mapping(獨立的一筆 mapping,要手動勾選)
+- [x] 1.4 把該 provider 的 invalidation flow 綁成 `default-invalidation-flow`(含 `UserLogoutStage`,完整 SLO);確認**沒有**修改那條共用 default flow 本身
 - [ ] 1.5 確認 issuer 使用正式 host(依 Decision K),並理解此值一經確定不可再改(見 design.md Risks)
-- [ ] 1.6 以 `curl -s <authority>/.well-known/openid-configuration | jq '{issuer, scopes_supported, end_session_endpoint}'` 驗收:`issuer` 逐字等於要設定的 `VITE_AUTHENTIK_AUTHORITY`、`scopes_supported` 含 `offline_access`、`end_session_endpoint` 有值(D5 要靠它)
+- [x] 1.6 以 `curl -s <authority>/.well-known/openid-configuration | jq '{issuer, scopes_supported, end_session_endpoint}'` 驗收:`issuer` 逐字等於要設定的 `VITE_AUTHENTIK_AUTHORITY`、`scopes_supported` 含 `offline_access`、`end_session_endpoint` 有值(D5 要靠它)
 
 ## 2. 建立 Vite 骨架(一次換乾淨,中間狀態不求可用)
 
@@ -38,12 +38,12 @@
 
 ## 5. 登出與外觀
 
-- [x] 5.1 從 `DEMO/src/utils/authentikLogout.ts` 取得 `signoutWithCancelBounce`,**連同解釋 Authentik 空白頁 bug 成因的 8 行註解一字不改**,變數名改成本專案的(D5)
+- [x] 5.1 登出直接用 `auth.signoutRedirect()`,不移植 demo 的 `signoutWithCancelBounce` 繞道 —— 2026.8.1 實測該 bug 不再重現(D5)。成因與繞道寫法記在 `CLAUDE.md` 的登出段落當診斷線索
 - [x] 5.2 把 `lib/theme.ts` 搬成 `src/theme.ts`,Bonvies 色票不變;**不移植** demo 的 `VITE_THEME_COLOR` 多色切換(D9)。驗證:首頁配色與現行版本一致
 - [x] 5.3 從 `DEMO/src/components/FullscreenState.tsx` 取得載入/錯誤畫面元件,移除其中對 `react-router` 的 `Link` 依賴(D2)
 - [ ] 5.4 重建 `src/components/NavBar.tsx`:保留現行的圓形 B logo 與版面,登入狀態改讀 `useAuth()`,**把「狀態未定」(`auth.isLoading`)與「已確定未登入」分開**(沿用現行 `NavBar.tsx:14-17` 的意圖)。驗證:已登入時重新整理,登入按鈕不會先閃一下
 - [ ] 5.5 建立登入 / 登出按鈕元件:登入呼叫 `auth.signinRedirect()`;登出照 D6 的順序 —— 取 `auth.user?.id_token` → `await auth.removeUser()` → `signoutWithCancelBounce(...)`。驗證:登出後導回 Portal 時顯示為**未登入**
-- [ ] 5.6 驗證繞道仍有效:連續登出兩次(第二次是殘留 flow plan 最容易發生的時機),兩次都正常導回,不得出現空白的 HTTP 200 頁面
+- [x] 5.6 連續登出兩次(第二次是 2026.8.0 那個 bug 最容易發生的時機),兩次都正常導回,不出現空白的 HTTP 200 頁面 —— 已在 2026.8.1 上實測通過,這也是移除繞道的依據
 
 ## 6. 產品清單與首頁
 

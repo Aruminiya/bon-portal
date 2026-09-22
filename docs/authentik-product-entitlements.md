@@ -1,8 +1,7 @@
 # Authentik:讓 Portal 知道客戶買了哪些產品
 
-> 狀態:**設定步驟已確認,程式端尚未實作。**
-> Portal 目前的產品清單是全域的(所有人看到一樣的連結),依客戶過濾這件事還沒做。
-> 這份文件先把 Authentik 那一半寫下來,程式端的規格另外開 OpenSpec change。
+> 程式端已實作:產品目錄在 `src/products.ts`,三態判讀在同檔的 `readEntitlements()`,
+> scope 在 `src/config/oidc.ts`。這份文件是 Authentik 那一半的操作手冊。
 
 ## 為什麼需要這個
 
@@ -137,6 +136,6 @@ Authentik 依該 application 的 policy binding 決定放不放行。
 ## 相關
 
 - `CLAUDE.md` —— 這個 app 的架構與登入/登出流程
-- `openspec/changes/` —— 產品清單依客戶過濾的規格(待新增)
+- `openspec/changes/filter-products-by-entitlement/` —— 這個功能的規格與決定
 - 參考實作:`~/Desktop/Program/Demo/authentik/code/authentik-react-demo-app`
   的 `CLAUDE.md` 有 `groups` scope mapping 的原始版本(本文件的步驟由它改寫而來)

@@ -23,7 +23,7 @@ npm run dev             # http://localhost:6030
 
 ## 設定
 
-五個環境變數,說明見 `.env.example`。**沒有一個是機密** —— Portal 是 public client(靠 PKCE,沒有 client secret),client_id 本來就會出現在授權請求的網址上。
+四個環境變數,說明見 `.env.example`。**沒有一個是機密** —— Portal 是 public client(靠 PKCE,沒有 client secret),client_id 本來就會出現在授權請求的網址上。
 
 | 變數 | 說明 |
 |---|---|
@@ -31,7 +31,10 @@ npm run dev             # http://localhost:6030
 | `VITE_AUTHENTIK_CLIENT_ID` | 對應 provider 的 client id |
 | `VITE_AUTHENTIK_REDIRECT_URI` | 登入後導回的位址,就是首頁 |
 | `VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI` | 登出後導回的位址,同上 |
-| `VITE_PORTAL_PRODUCTS` | 首頁要列的服務,逗號分隔的完整 URL |
+
+**首頁要列哪些服務不在這裡。** 產品目錄對所有部署都一樣,屬於程式碼(`src/products.ts`);
+而「哪個客戶能看到哪些服務」由 Authentik 的授權決定(見 `docs/authentik-product-entitlements.md`)。
+因此部署時不需要跟 `gcloud` 的逗號分隔語法(`^@^`)打架。
 
 設定在 **build 時**燒進產物,一個 image 對應一個環境。本機開發讀 `.env`;build image 時由 `--build-arg` 提供(見下方「部署」)。少了必要參數 build 會直接失敗。
 
@@ -42,7 +45,8 @@ npm run dev             # http://localhost:6030
 1. **Redirect URI** 填 `VITE_AUTHENTIK_REDIRECT_URI` 的值,**逐字相同**(連結尾斜線都算)
 2. **再加一筆 type=logout、matching mode=strict** 的 redirect URI,值是 `VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI`
 3. **Scopes 勾上 `offline_access`** —— 少了它拿不到 refresh token,登入約五分鐘後登出按鈕會消失
-4. **Invalidation flow 綁 `default-invalidation-flow`**(含 `UserLogoutStage`,才是完整 SLO)。各服務則應該綁 `default-provider-invalidation-flow`,這樣「從 Portal 登出」會登出全部、「從某個服務登出」只影響它自己。**不要去改那條共用的 default flow 本身**
+4. **建立 `products` 的 Scope Mapping 並加進 Scopes** —— 首頁要靠它決定顯示哪些服務,步驟見 `docs/authentik-product-entitlements.md`
+5. **Invalidation flow 綁 `default-invalidation-flow`**(含 `UserLogoutStage`,才是完整 SLO)。各服務則應該綁 `default-provider-invalidation-flow`,這樣「從 Portal 登出」會登出全部、「從某個服務登出」只影響它自己。**不要去改那條共用的 default flow 本身**
 
 驗收:
 
@@ -63,7 +67,6 @@ docker build \
   --build-arg VITE_AUTHENTIK_CLIENT_ID=... \
   --build-arg VITE_AUTHENTIK_REDIRECT_URI=https://portal.example.com/ \
   --build-arg VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI=https://portal.example.com/ \
-  --build-arg VITE_PORTAL_PRODUCTS=https://a.example.com,https://b.example.com \
   -t bon-portal .
 
 docker run -p 6030:80 bon-portal

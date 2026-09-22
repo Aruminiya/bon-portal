@@ -4,19 +4,17 @@ import { Box, Link, Paper, Stack, Typography } from '@mui/material'
 import { FullscreenError, FullscreenLoader } from './components/FullscreenState'
 import { NavBar } from './components/NavBar'
 import { AuthentikLoginButton } from './components/AuthentikLoginButton'
-import { getPortalProducts } from './utils/portalProducts'
+import { readEntitlements, type Product } from './products'
 
-function ProductList() {
-  const products = getPortalProducts()
+function CentredNotice({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+      {children}
+    </Typography>
+  )
+}
 
-  if (products.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-        目前沒有可使用的服務。如果這與您的合約內容不符,請與我們聯繫。
-      </Typography>
-    )
-  }
-
+function ProductList({ products }: { products: Product[] }) {
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
       {products.map((product) => (
@@ -55,6 +53,11 @@ function ProductList() {
 
 export default function App() {
   const auth = useAuth()
+
+  // products 是 Authentik 透過自訂 scope mapping 回來的非標準 claim，所以在
+  // profile 上的型別是 unknown（IdTokenClaims 的索引簽章）。三態的判讀集中在
+  // readEntitlements()，這裡只負責取值。
+  const entitlements = readEntitlements(auth.user?.profile?.products)
 
   if (auth.isLoading) {
     return <FullscreenLoader label="確認登入狀態中..." />
@@ -118,7 +121,21 @@ export default function App() {
         </Stack>
 
         <Box sx={{ maxWidth: 960, mx: 'auto', px: 2, pb: 10 }}>
-          {auth.isAuthenticated && <ProductList />}
+          {auth.isAuthenticated &&
+            (entitlements.status === 'ok' ? (
+              <ProductList products={entitlements.products} />
+            ) : entitlements.status === 'none' ? (
+              <CentredNotice>
+                目前沒有可使用的服務。如果這與您的合約內容不符,請與我們聯繫。
+              </CentredNotice>
+            ) : (
+              // status === 'missing'：Authentik 那邊的 scope mapping 沒建好或沒掛上
+              // provider。這是我們的設定問題，不是客戶沒買東西 —— 兩者的文案必須
+              // 不同，否則我們會把自己的設定錯誤講成客戶的合約狀態。
+              <CentredNotice>
+                無法取得您的服務授權,請與我們聯繫。
+              </CentredNotice>
+            ))}
         </Box>
       </Box>
 

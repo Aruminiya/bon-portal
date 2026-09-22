@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
-// Portal 的全部設定。這五個值在 **build 時**就被 Vite 換成字面值寫進產物，
+// Portal 的全部部署設定。產品目錄不在這裡 —— 它對所有部署都一樣，
+// 屬於程式碼（見 src/products.ts）。這五個值在 **build 時**就被 Vite 換成字面值寫進產物，
 // 不是執行時讀的 —— 所以一個 image 對應一個環境，換設定要重新 build
 // （成本很低：build 不到一秒，而且在 Cloud Run 上改環境變數本來也要部署
 // 一個新 revision，並沒有省掉那一步）。
@@ -16,7 +17,6 @@ interface ImportMetaEnv {
   readonly VITE_AUTHENTIK_CLIENT_ID: string
   readonly VITE_AUTHENTIK_REDIRECT_URI: string
   readonly VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI?: string
-  readonly VITE_PORTAL_PRODUCTS?: string
 }
 
 interface ImportMeta {

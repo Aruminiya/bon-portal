@@ -17,7 +17,10 @@ export const oidcConfig: AuthProviderNoUserManagerProps = {
   // 對 Portal 還有第二個理由：react-oidc-context 的 isAuthenticated 定義是
   // `user && !user.expired`，access token 一過期（預設 5 分鐘）就變 false，
   // 登出按鈕會跟著消失 —— 使用者就做不了 SLO 了。
-  scope: 'openid profile email offline_access',
+  // products 是自訂的 scope（Authentik 端的 Scope Mapping），回傳這個使用者被
+  // 授權的產品清單，已經歸納到產品層級 —— 細項權限（bonsale:admin 之類）在
+  // Authentik 那邊就收斂掉了，Portal 不需要、也不該拿到整包 groups。
+  scope: 'openid profile email offline_access products',
 
   automaticSilentRenew: true,
 

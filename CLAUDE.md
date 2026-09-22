@@ -46,9 +46,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 任何其他路徑由 nginx 的 `try_files` 回 `index.html`,再由 `src/main.tsx` 開頭兩行把網址列收回 `/`。
 
+### 產品清單
+
+首頁列的是**產品目錄**與**該客戶的授權**的交集。這兩份資料刻意放在不同地方:
+
+```
+對所有客戶都一樣的  →  src/products.ts(程式碼,進版控,有型別有註解)
+每個客戶不一樣的    →  Authentik 的群組(簽約後由業務設定)
+```
+
+所以「有哪些產品、叫什麼、網址是什麼」是程式碼;「這位客戶能看到哪些」是 Authentik 的事。Portal 不維護任何「誰買了什麼」的副本。
+
+授權透過自訂的 `products` scope 回來,而且**是已經歸納到產品層級的**:Authentik 端的 Scope Mapping 把 `bonsale:admin` 這類細項權限 `split(":")[0]` 收斂成 `bonsale`。Portal 因此只做單純的交集,不需要 prefix 比對,token 也不會被幾十條細項權限撐大(撐大會連帶讓登出的 `id_token_hint` URL 過長)。設定步驟見 `docs/authentik-product-entitlements.md`。
+
+`readEntitlements()`(`src/products.ts`)把 claim 判成三態,**三者的畫面必須不同**:
+
+| claim | 意思 | 文案 |
+|---|---|---|
+| 不存在 / 不是陣列 | **我們的設定錯了** | 無法取得您的服務授權,請與我們聯繫 |
+| 對不上任何產品(含空陣列) | 客戶確實沒有可用服務(例如合約到期) | 目前沒有可使用的服務 |
+| 有對上 | 正常 | 產品連結 |
+
+把前兩者混在一起,等於把自己的設定錯誤講成客戶的合約狀態。
+
+**這個過濾不是安全邊界,也不該做成安全邊界。** 客戶改 devtools 就能讓所有連結出現 —— 不要緊,真正的關卡在各產品那邊(產品自己跑 OIDC,Authentik 依 policy binding 決定放不放行)。在 Portal 加一層驗證會讓它變回刻意不當的角色,而且擋不住任何真實攻擊:攻擊者本來就能直接開產品網址。
+
 ### 設定
 
-**五個 `VITE_*` 變數,沒有一個是機密**(client_id 會明文出現在授權請求的網址上;其餘都是網址)。Portal 是 public client,沒有 client secret。
+**四個 `VITE_*` 變數,沒有一個是機密**(client_id 會明文出現在授權請求的網址上;其餘都是網址)。Portal 是 public client,沒有 client secret。
 
 設定在 **build 時**就被 Vite 換成字面值寫進產物 —— 一個 image 對應一個環境,換設定要重新 build。這是刻意的:Portal 只有一個部署,而重 build 不到一秒、push 的只有變動的那層;何況在 Cloud Run 上改環境變數本來就會產生一個新 revision,也是一次部署,所以執行時注入並沒有省掉那一步。
 

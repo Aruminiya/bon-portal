@@ -1,8 +1,10 @@
 # Bon Portal
 
-公司內部的 SSO 登入入口(launcher)。前端 only,身分由自架的 [Authentik](https://goauthentik.io/) 提供。
+提供給簽約客戶的服務登入入口(launcher)。前端 only,身分由自架的 [Authentik](https://goauthentik.io/) 提供。
 
-使用者在這裡登入一次,建立起 Authentik 的 SSO session,之後點首頁的服務連結就能直接進去 —— 各服務自己跑一次 OIDC,靠瀏覽器已有的 session cookie 靜默完成登入。**Portal 不經手任何服務的憑證。**
+客戶在這裡登入一次,建立起 Authentik 的 SSO session,之後點首頁的服務連結就能直接進去 —— 各服務自己跑一次 OIDC,靠瀏覽器已有的 session cookie 靜默完成登入。**Portal 不經手任何服務的憑證。**
+
+帳號不開放自助註冊:簽約後由我們在 Authentik 預先建立帳號並設定該客戶可用的服務。
 
 ## 開發
 

@@ -12,7 +12,7 @@ function ProductList() {
   if (products.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-        尚未設定任何服務。請在建置時以 VITE_PORTAL_PRODUCTS 填入服務網址。
+        目前沒有可使用的服務。如果這與您的合約內容不符,請與我們聯繫。
       </Typography>
     )
   }
@@ -112,7 +112,7 @@ export default function App() {
             Bon Portal 服務入口
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            集中管理所有內部系統的登入,一次登入即可暢行公司內部服務。
+            一次登入,即可進入您已開通的所有服務。
           </Typography>
           {!auth.isAuthenticated && <AuthentikLoginButton />}
         </Stack>

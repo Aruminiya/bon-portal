@@ -13,12 +13,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this app is
 
-公司內部的 SSO **launcher**(登入中控)—— 前端 only,身分由自架的 [Authentik](https://goauthentik.io/) 提供,這個 repo 裡沒有任何後端。
+提供給**簽約客戶**的服務登入入口(launcher)—— 前端 only,身分由自架的 [Authentik](https://goauthentik.io/) 提供,這個 repo 裡沒有任何後端。
+
+**不是**內部員工工具,也**不是**行銷網站(行銷另有站點)。帳號不開放自助註冊:業務簽約後,由我們在 Authentik 預先建立帳號並設定該客戶可用的服務,客戶在合約期間內使用。沒有 free trial、沒有線上結帳 —— 報價與收款走合約流程,不經過這個 app。
 
 流程只有兩件事:
 
-1. 使用者在 Portal 登入 → 建立起 Authentik 的 SSO session(`authentik_session` cookie)
-2. 使用者點首頁的產品連結 → 該產品**自己**跑一次 OIDC,靠那個 cookie 靜默完成登入
+1. 客戶在 Portal 登入 → 建立起 Authentik 的 SSO session(`authentik_session` cookie)
+2. 客戶點首頁的產品連結 → 該產品**自己**跑一次 OIDC,靠那個 cookie 靜默完成登入
 
 **Portal 全程不碰產品的 token。** 這是刻意的責任邊界:Portal 不是憑證的中繼站,各產品自己對 Authentik 負責。舊版曾經把 `id_token` 放在網址 fragment 交給下游服務(`#token=`),那套已經整個移除,連帶移除了為它存在的 open-redirect 網域白名單。
 

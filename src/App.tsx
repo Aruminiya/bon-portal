@@ -53,7 +53,9 @@ function ProductList({ products }: { products: Product[] }) {
 
 export default function App() {
   const auth = useAuth()
-
+  // TODO(remove): 臨時給同事看授權內容用，上正式版前刪掉。
+  // auth.user 含 refresh_token 與個資，不能留到客戶的瀏覽器裡。
+  console.log('auth', auth) // eslint-disable-line no-console
   // products 是 Authentik 透過自訂 scope mapping 回來的非標準 claim，所以在
   // profile 上的型別是 unknown（IdTokenClaims 的索引簽章）。三態的判讀集中在
   // readEntitlements()，這裡只負責取值。

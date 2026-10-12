@@ -13,9 +13,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this app is
 
-提供給**簽約客戶**的服務登入入口(launcher)—— 前端 only,身分由自架的 [Authentik](https://goauthentik.io/) 提供,這個 repo 裡沒有任何後端。
+提供給**客戶**的服務登入入口(launcher)—— 前端 only,身分由自架的 [Authentik](https://goauthentik.io/) 提供,這個 repo 裡沒有任何後端。
 
-**不是**內部員工工具,也**不是**行銷網站(行銷另有站點)。帳號不開放自助註冊:業務簽約後,由我們在 Authentik 預先建立帳號並設定該客戶可用的服務,客戶在合約期間內使用。沒有 free trial、沒有線上結帳 —— 報價與收款走合約流程,不經過這個 app。
+**不是**內部員工工具,也**不是**行銷網站(行銷另有站點)。
+
+帳號有三種來源:業務簽約後在 Authentik 預先建立、客戶第一次用 Google 登入時自動建立、客戶自行用 email + 密碼註冊(點過確認信才建立帳號)。**一個 email 只對應一個帳號** —— 不管用密碼還是 Google 登入,都要進到同一個 user。規則與理由見 `docs/authentik-google-login.md`;email 註冊與忘記密碼的 flow 尚未實作。
+
+不管帳號從哪裡來,**授權只來自 Authentik 的群組**,自動建立或自行註冊的帳號一開始沒有任何產品。線上購買後怎麼把群組給上去尚未定案(等後端分工),目前仍由我們在後台設定。
 
 流程只有兩件事:
 
@@ -54,7 +58,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 對所有客戶都一樣的  →  src/products.ts(程式碼,進版控,有型別有註解)
-每個客戶不一樣的    →  Authentik 的群組(簽約後由業務設定)
+每個客戶不一樣的    →  Authentik 的群組(目前由我們在後台設定)
 ```
 
 所以「有哪些產品、叫什麼、網址是什麼」是程式碼;「這位客戶能看到哪些」是 Authentik 的事。Portal 不維護任何「誰買了什麼」的副本。
@@ -66,7 +70,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | claim | 意思 | 文案 |
 |---|---|---|
 | 不存在 / 不是陣列 | **我們的設定錯了** | 無法取得您的服務授權,請與我們聯繫 |
-| 對不上任何產品(含空陣列) | 客戶確實沒有可用服務(例如合約到期) | 目前沒有可使用的服務 |
+| 對不上任何產品(含空陣列) | 客戶確實沒有可用服務(例如合約到期、自行註冊但還沒開通) | 目前沒有可使用的服務 |
 | 有對上 | 正常 | 產品連結 |
 
 把前兩者混在一起,等於把自己的設定錯誤講成客戶的合約狀態。

@@ -132,26 +132,37 @@ Google 驗完身分,把 sub(Google 的永久使用者 ID)和 email 送回 Authen
 | **Slug** | `google` | 決定 callback URL,要跟步驟 1 一致 |
 | **Consumer key** | 步驟 1 的 Client ID | |
 | **Consumer secret** | 步驟 1 的 Client Secret | |
-| **User matching mode** | `Link to a user with identical email address` | ← 「一個 email 一個帳號」的 Google 那一半 |
+| **User matching mode**(使用者比對模式) | `Link to a user with identical email address`(連結到具有相同電子郵件地址的使用者) | ← 「一個 email 一個帳號」的 Google 那一半 |
 | **Authentication flow** | `default-source-authentication`(或你們自訂的) | 已連結的人靠這條進來 |
 | **Enrollment flow** | `default-source-enrollment`(或你們自訂的) | 沒帳號的人靠這條自動建帳號 |
 
-兩個容易弄錯的地方:
+User matching mode 選錯時,症狀依選到哪一個而不同。拿「已有帳密帳號 `ming@acme.com`、
+第一次按 Google 登入」來看:
 
-- **User matching mode 的預設值是 `Link users on unique identifier`**,它只認 Google 的 `sub`、
-  完全不看 email。留在預設值,「先用 email 註冊、後來改按 Google」就會長出第二個帳號 ——
-  不會報錯,只是客戶會發現服務不見了。Authentik 在這個選項旁邊會標註安全疑慮,指的就是上面
-  「業務開的帳號 email 必須正確」那一節。
-- **Enrollment flow 留空 = 沒帳號的人用 Google 會被擋下。** 這是「不開放註冊」時期的設定,
-  現在要填。
+| 選項 | 小明看到的 | 使用者清單 |
+|---|---|---|
+| `Link users on unique identifier`(使用唯一識別碼連結,**Authentik 預設**) | 登入成功,但進到一個**新帳號**,服務不見了 | 多一個同 email 的 user |
+| `Use the user's email address, but deny enrollment when the email address already exists`(使用電子郵件地址,但已存在時拒絕註冊,**我們 2026-10 之前的設定**) | **登入失敗**,停在 Authentik 的錯誤畫面 | 沒變 |
+| `Link to a user with identical email address`(**現在要的**) | 登入成功,進到原本的帳號 | 沒變,原帳號多一筆 Google 連結 |
+
+兩種錯法都不會在後台報錯。Authentik 在正確選項旁標註「來源不驗證 email 時可能有安全風險」,
+指的就是上面「業務開的帳號 email 必須正確」那一節。
+
+另外,**Enrollment flow 留空 = 沒帳號的人用 Google 會被擋下。** 這是「不開放註冊」時期的
+設定,現在要填。
 
 ### 3. 把 Source 加到登入畫面
 
 光是建好 Source,登入畫面**不會**自動出現按鈕。
 
-**Flows and Stages → Stages → `default-authentication-identification` → Edit → Sources**
+Portal 的登入用的是自建的 `google-authentication` flow,不是 Authentik 預設的
+`default-authentication-flow`,所以要改的是它裡面的 Identification 階段:
+
+**流程與階段 → 階段 → `google-identification` → 編輯 → 來源設定**
 
 把 `Google` 從左邊加到 **Selected**。
+
+> 改成 `default-authentication-identification` 不會報錯,只是 Portal 的登入頁不會有任何變化。
 
 > ⚠️ 這步驟跟 `docs/authentik-product-entitlements.md` 裡「把 scope mapping 掛到
 > provider 上」是同一個形狀的坑:東西建好了但沒掛上去,Authentik 不會抱怨,只是
@@ -181,7 +192,10 @@ Google 驗完身分,把 sub(Google 的永久使用者 ID)和 email 送回 Authen
 第 5 點成立的原因:**entitlement 跟登入方式無關。** `products` claim 來自 Authentik 的群組,
 群組掛在 user 上,而 Google 登入進來的是同一個 user。
 
-如果第 6 步看到多了一個 user,就是 matching mode 還停在預設值。
+第 4 步就登入失敗 → matching mode 停在「已存在時拒絕」;第 6 步多了一個 user → 停在
+預設的「唯一識別碼」。對照步驟 2 的表。
+
+**Google 登入不會寄任何信**(Google 已驗證過 email),這是正常的。
 
 ## 上線後要知道的
 
@@ -219,4 +233,5 @@ OIDC,Authentik 依 policy binding 決定放不放行)。
 - `CLAUDE.md` —— 這個 app 的架構與登入/登出流程
 - `docs/authentik-product-entitlements.md` —— `products` scope 的設定(本文件的步驟 5
   會驗到它)
+- `docs/authentik-password-recovery.md` —— 同一個登入頁上的「忘記密碼」
 - 參考實作:`~/Desktop/Program/Demo/authentik/code/authentik-react-demo-app`
